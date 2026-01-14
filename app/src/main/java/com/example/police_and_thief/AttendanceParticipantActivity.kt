@@ -67,19 +67,18 @@ fun AttendanceParticipantScreen(meetingId: String, onBack: () -> Unit) {
     // 내 출석 여부
     var isMeCheckedIn by remember { mutableStateOf(false) }
 
-    // QR 스캐너
+
     // QR 스캐너 설정
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         if (result.contents != null) {
             val scannedId = result.contents
             if (scannedId == meetingId && currentUser != null) {
 
-                // 1. 모임 문서에 출석 체크 (기존 로직 유지)
+                // 1. 모임 문서에 출석 체크
                 db.collection("meetings").document(meetingId)
                     .update("checkedInUids", FieldValue.arrayUnion(currentUser.uid))
                     .addOnSuccessListener {
 
-                        // ★★★ [수정] 단순 increment 대신, 데이터를 가져와서 계산 후 업데이트 ★★★
                         val userRef = db.collection("users").document(currentUser.uid)
 
                         db.runTransaction { transaction ->
@@ -90,27 +89,22 @@ fun AttendanceParticipantScreen(meetingId: String, onBack: () -> Unit) {
                             val currentExp = snapshot.getLong("exp")?.toInt() ?: 0
                             val currentManner = snapshot.getDouble("mannerTemp") ?: 36.5
 
-                            // 보상 설정 (예: 출석하면 경험치 +10, 매너온도 +0.5)
+                            // 보상 설정 (출석 보상: 경험치 10)
                             val earnedExp = 10
 
-                            // ★ 레벨업 계산 로직 (GameActivity와 동일한 로직 적용)
-                            var newLevel = currentLevel
-                            var newExp = currentExp + earnedExp
-                            // 레벨 * 100을 최대 경험치로 가정
-                            var maxExp = newLevel * 100
+                            // ============================================================
+                            // ★ [수정됨] LevelManager를 사용하여 깔끔하게 교체! ★
+                            // ============================================================
+                            // 기존의 복잡한 while문 로직을 다 지우고 이 한 줄만 쓰면 됩니다.
+                            val (newLevel, newExp) = LevelManager.calculateNewStats(currentLevel, currentExp, earnedExp)
+                            // ============================================================
 
-                            while (newExp >= maxExp) {
-                                newExp -= maxExp
-                                newLevel++
-                                maxExp = newLevel * 100
-                            }
-
-                            // DB 업데이트 준비
+                            // DB 업데이트
                             transaction.update(userRef, "level", newLevel)
                             transaction.update(userRef, "exp", newExp)
-                            transaction.update(userRef, "mannerTemp", currentManner + 0.5) // 매너온도도 같이
+                            transaction.update(userRef, "mannerTemp", currentManner + 0.5)
 
-                            // 리턴값 (토스트 메시지용)
+                            // 리턴값 (레벨업 여부 확인)
                             if (newLevel > currentLevel) "LEVEL_UP" else "OK"
 
                         }.addOnSuccessListener { resultMsg ->

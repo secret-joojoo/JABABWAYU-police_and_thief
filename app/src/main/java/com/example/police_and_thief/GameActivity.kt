@@ -240,21 +240,20 @@ fun GameScreen(meetingId: String) {
                                             round = roundNum.toInt()
                                         )
 
-                                        // 5. 유저 경험치 정산
+                                        // 5. 유저 경험치 정산 부분
                                         currentRolesMap.forEach { (uid, role) ->
                                             val isWin = (role == winner)
-                                            val earnedExp = if (isWin) 50 else 10 // 획득 경험치
+                                            val earnedExp = if (isWin) 50 else 10
 
                                             db.collection("users").document(uid).get().addOnSuccessListener { uDoc ->
                                                 if (uDoc.exists()) {
-                                                    // ★ [중요] DB 필드명 "exp"로 수정됨
                                                     val cLevel = uDoc.getLong("level")?.toInt() ?: 1
-                                                    val cExp = uDoc.getLong("exp")?.toInt() ?: 0 // 'xp' -> 'exp'
+                                                    val cExp = uDoc.getLong("exp")?.toInt() ?: 0
 
-                                                    // 계산 함수 호출
-                                                    val (nLevel, nExp) = calculateNewLevelData(cLevel, cExp, earnedExp)
+                                                    // ★★★ [수정] 이제 LevelManager에게 일을 시킵니다! ★★★
+                                                    val (nLevel, nExp) = LevelManager.calculateNewStats(cLevel, cExp, earnedExp)
 
-                                                    // ★ [중요] 업데이트할 때도 "exp"로 저장
+                                                    // DB 업데이트
                                                     db.collection("users").document(uid).update(
                                                         mapOf(
                                                             "level" to nLevel,

@@ -323,7 +323,11 @@ fun MainScreen() {
 
                         Spacer(modifier = Modifier.height(10.dp))
                         Text("Lv. $level", fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                        Text("Exp $exp%", fontSize = 15.sp)
+                        val maxExp = level * 100
+                        val expPercent = if (maxExp > 0) (exp.toFloat() / maxExp) * 100 else 0f
+
+                        // 소수점 1자리까지만 예쁘게 표시 (예: Exp 50.0%)
+                        Text("Exp ${String.format("%.1f", expPercent)}%", fontSize = 15.sp)
                     }
                     Text(text = "신용도 ${mannerTemp}", fontSize = 15.sp)
 
