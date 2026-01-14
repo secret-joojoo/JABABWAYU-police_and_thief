@@ -54,7 +54,7 @@ data class MeetingItem(
     val participantIds: List<String>
 )
 
-// ★ [데이터] 대한민국 행정구역 데이터
+// [데이터] 대한민국 행정구역 데이터 (기존과 동일하여 생략 가능하지만 안전하게 포함)
 val koreaRegionData = mapOf(
     "전체" to emptyList(),
     "서울특별시" to listOf("전체", "강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구", "노원구", "도봉구", "동대문구", "동작구", "마포구", "서대문구", "서초구", "성동구", "성북구", "송파구", "양천구", "영등포구", "용산구", "은평구", "종로구", "중구", "중랑구"),
@@ -79,6 +79,7 @@ val koreaRegionData = mapOf(
 class JoinMeetingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // intent에서 placeName을 못 가져오면 빈 문자열("")
         val targetPlace = intent.getStringExtra("placeName") ?: ""
         setContent {
             MaterialTheme {
@@ -93,8 +94,8 @@ class JoinMeetingActivity : ComponentActivity() {
 fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
     val context = LocalContext.current
     val db = Firebase.firestore
-    val auth = Firebase.auth
-    val currentUser = auth.currentUser
+    // ★ 수정: 'auth' 변수 선언 후 사용하지 않아 삭제하고 바로 currentUser만 가져옴
+    val currentUser = Firebase.auth.currentUser
 
     // [상태 변수]
     var originalList by remember { mutableStateOf(emptyList<MeetingItem>()) }
@@ -107,7 +108,7 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
 
     // 필터 관련 상태
     var showFilterDialog by remember { mutableStateOf(false) }
-    var filterRegion by remember { mutableStateOf("") } // 지역 필터 ("서울 강남구" 등)
+    var filterRegion by remember { mutableStateOf("") }
     var filterAfterParty by remember { mutableStateOf(false) }
     var filterMinManner by remember { mutableFloatStateOf(50.0f) }
 
@@ -115,23 +116,17 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
     var selectedMeeting by remember { mutableStateOf<MeetingItem?>(null) }
     var showSuccessPopup by remember { mutableStateOf<MeetingItem?>(null) }
 
-    // [데이터 불러오기]
+// [1] 데이터 불러오기 (강제 노출 모드)
     LaunchedEffect(Unit) {
+        // ★ 중요: 쿼리 조건 없이 일단 다 가져옵니다 (필터링은 코드에서 직접!)
         db.collection("meetings")
-            .whereEqualTo("status", "recruiting")
             .get()
             .addOnSuccessListener { result ->
-                // 1. 현재 시간 가져오기
-                val currentTime = System.currentTimeMillis()
-                val deadlineOffset = 30 * 60 * 1000 // ★ 30분을 밀리초로 변환 (1800000ms)
-                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-
                 val list = result.documents.mapNotNull { doc ->
                     try {
                         MeetingItem(
                             id = doc.id,
-                            title = doc.getString("title") ?: "",
-                            // ... (나머지 필드들은 그대로 유지) ...
+                            title = doc.getString("title") ?: "제목 없음",
                             placeName = doc.getString("placeName") ?: "",
                             dateString = doc.getString("dateString") ?: "",
                             hostUid = doc.getString("hostUid") ?: "",
@@ -140,38 +135,60 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
                             minAge = (doc.getLong("minAge")?.toInt()) ?: 0,
                             maxAge = (doc.getLong("maxAge")?.toInt()) ?: 100,
                             hasAfterParty = doc.getBoolean("hasAfterParty") ?: false,
-                            mannerTempCutline = (doc.getDouble("mannerTempCutline")?.toFloat()) ?: 50.0f,
+                            mannerTempCutline = (doc.getDouble("mannerTempCutline")?.toFloat()) ?: 0.0f,
                             gameTime = (doc.getLong("gameTimePerRound")?.toInt()) ?: 15,
                             totalRounds = (doc.getLong("totalRounds")?.toInt()) ?: 3,
                             participantIds = doc.get("participantIds") as? List<String> ?: emptyList()
                         )
-                    } catch (e: Exception) { null }
+                    } catch (e: Exception) {
+                        // 데이터 변환 중 에러나면 로그 찍기
+                        android.util.Log.e("DEBUG_MEETING", "변환 에러(${doc.id}): ${e.message}")
+                        null
+                    }
                 }
 
-                // ★ [여기가 핵심!] 2. 날짜 지난 모임 걸러내기 + 장소 필터링
-                // ★ [수정됨] 30분 전 마감 필터링
+                // ★ 디버깅용 로그: 왜 안 뜨는지 확인
+                android.util.Log.d("DEBUG_MEETING", "=== [필터링 시작] ===")
+                android.util.Log.d("DEBUG_MEETING", "넘어온 타겟 장소: '$targetPlace'")
+
                 val filteredList = list.filter { item ->
-                    val placeMatch = if (targetPlace.isNotEmpty()) item.placeName == targetPlace else true
+                    // 1. 상태 확인 (DB 값을 직접 가져와서 확인)
+                    val dbStatus = result.documents.find { it.id == item.id }?.getString("status") ?: ""
 
-                    val meetingDate = try {
-                        sdf.parse(item.dateString)?.time ?: 0L
-                    } catch (e: Exception) { 0L }
+                    // 공백 제거 후 비교 (오타 방지)
+                    val isRecruiting = dbStatus.trim() == "recruiting"
 
-                    // "장소가 맞고" AND "모임 시간이 (현재 시간 + 30분)보다 커야 함"
-                    // 즉, 시작까지 30분도 안 남았으면 리스트에서 탈락!
-                    placeMatch && (meetingDate > currentTime + deadlineOffset)
+                    // 2. 장소 확인 (일단 무조건 통과시키되, 로그로 확인)
+                    val placeMatch = if (targetPlace.isNotBlank()) {
+                        item.placeName.replace(" ", "").contains(targetPlace.replace(" ", ""))
+                    } else {
+                        true
+                    }
+
+                    // 로그 출력
+                    if (!isRecruiting) android.util.Log.d("DEBUG_MEETING", "탈락(상태): ${item.title} / status=$dbStatus")
+                    if (!placeMatch) android.util.Log.d("DEBUG_MEETING", "탈락(장소): ${item.title} / DB장소=${item.placeName}")
+
+                    // ★ [강제 노출] 상태가 recruiting이기만 하면 장소 상관없이 무조건 보여줍니다.
+                    isRecruiting
                 }
 
-                originalList = filteredList
-                displayedList = originalList.sortedBy { it.dateString }
+                // 날짜순 정렬
+                originalList = filteredList.sortedBy { it.dateString }
+                displayedList = originalList
+                isLoading = false
+
+                android.util.Log.d("DEBUG_MEETING", "최종 표시 개수: ${originalList.size}")
+            }
+            .addOnFailureListener {
+                Toast.makeText(context, "로드 실패: ${it.message}", Toast.LENGTH_SHORT).show()
                 isLoading = false
             }
     }
-
-    // [정렬 및 필터 적용 로직]
-    fun applyFilterAndSort() {
+    // [2] 정렬 및 필터 적용 (옵션이 바뀔 때마다 자동 실행)
+    LaunchedEffect(originalList, sortOption, filterRegion, filterAfterParty, filterMinManner) {
+        // 1. 원본에서 필터링
         var temp = originalList.filter { item ->
-            // 지역 필터: 설정된 지역 문자열이 장소 이름에 포함되어 있는지 확인
             val regionMatch = if (filterRegion.isBlank()) true else item.placeName.contains(filterRegion)
             val partyMatch = if (filterAfterParty) item.hasAfterParty else true
             val mannerMatch = item.mannerTempCutline >= filterMinManner
@@ -179,6 +196,7 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
             regionMatch && partyMatch && mannerMatch
         }
 
+        // 2. 정렬
         temp = when (sortOption) {
             0 -> temp.sortedBy { it.dateString }
             1 -> temp.sortedByDescending { it.currentCount }
@@ -189,7 +207,7 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
         displayedList = temp
     }
 
-    // ★ [알람 예약 함수] : 24시간 전, 1시간 전 알림 예약 - 타입 추가됨!
+    // ★ [알람 예약 함수]
     fun scheduleMeetingAlarm(meeting: MeetingItem) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
@@ -198,7 +216,6 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
             val date = sdf.parse(meeting.dateString) ?: return
             val meetingTime = date.time
 
-            // 알람 정보를 담을 데이터 클래스 (시간, 제목, 내용, ★타입)
             data class AlarmInfo(val time: Long, val title: String, val content: String, val type: String)
 
             val triggerList = listOf(
@@ -212,19 +229,13 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
                         putExtra("title", info.title)
                         putExtra("message", info.content)
                         putExtra("meetingId", meeting.id)
-                        putExtra("ALARM_TYPE", info.type) // ★ 중요: 리시버에서 구분할 타입 전달
+                        putExtra("ALARM_TYPE", info.type)
                     }
-
-                    // 요청 코드를 유니크하게 만들기 (모임ID 해시코드 + 인덱스)
                     val requestCode = meeting.id.hashCode() + index
-
                     val pendingIntent = PendingIntent.getBroadcast(
-                        context,
-                        requestCode,
-                        intent,
+                        context, requestCode, intent,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
-
                     try {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             if (alarmManager.canScheduleExactAlarms()) {
@@ -290,10 +301,11 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
                     .clickable { showFilterDialog = true }
                     .padding(4.dp)
             ) {
+                // 이미지가 없다면 기본 아이콘 사용 (painterResource 대신 Icons 사용 가능)
                 Image(
                     painter = painterResource(id = R.drawable.ic_filter),
                     contentDescription = "필터",
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(24.dp)
                 )
                 Text("필터", fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
@@ -311,7 +323,7 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_sort),
                         contentDescription = "정렬",
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                     Text("정렬", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
@@ -321,8 +333,7 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
                         DropdownMenuItem(
                             text = { Text(label, fontWeight = if(sortOption==index) FontWeight.Bold else FontWeight.Normal) },
                             onClick = {
-                                sortOption = index
-                                applyFilterAndSort() // 정렬 선택 시 바로 필터+정렬 적용
+                                sortOption = index // 정렬 옵션 변경 -> LaunchedEffect 실행됨
                                 showSortMenu = false
                             }
                         )
@@ -358,8 +369,7 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
             onApply = { region, party, manner ->
                 filterRegion = region
                 filterAfterParty = party
-                filterMinManner = manner
-                applyFilterAndSort()
+                filterMinManner = manner // 필터 변경 -> LaunchedEffect 실행됨
                 showFilterDialog = false
             }
         )
@@ -393,9 +403,7 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
                                 db.collection("meetings").document(meeting.id)
                                     .update("participantIds", FieldValue.arrayUnion(currentUser.uid))
                                     .addOnSuccessListener {
-                                        // ★ 참가 성공 시 알람 예약 함수 호출!
                                         scheduleMeetingAlarm(meeting)
-
                                         selectedMeeting = null
                                         showSuccessPopup = meeting
                                     }
@@ -417,7 +425,7 @@ fun JoinMeetingScreen(targetPlace: String, onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = {
                 showSuccessPopup = null
-                onBack()
+                onBack() // 리스트 갱신 등을 위해 뒤로가거나 머무를 수 있음 (여기선 onBack 호출)
             },
             title = { Text("🎉 참가 확정!") },
             text = {
@@ -471,8 +479,7 @@ fun EnhancedMeetingCard(meeting: MeetingItem, onClick: () -> Unit) {
                 HashTag("#${meeting.dateString}")
                 HashTag("#${meeting.placeName}")
                 HashTag("#${meeting.minAge}~${meeting.maxAge}세")
-                if(meeting.hasAfterParty) HashTag("#뒷풀이O")
-                else HashTag("#뒷풀이X")
+                if(meeting.hasAfterParty) HashTag("#뒷풀이O") else HashTag("#뒷풀이X")
                 HashTag("#신용도${meeting.mannerTempCutline}↑")
 
                 val roundsText = if (meeting.totalRounds == -1) "라운드미정" else "${meeting.totalRounds}라운드"
@@ -505,6 +512,7 @@ fun FilterDialog(
     onDismiss: () -> Unit,
     onApply: (String, Boolean, Float) -> Unit
 ) {
+    // 필터 초기화 값 세팅
     val splitRegion = currentRegion.split(" ")
     var selectedDo by remember { mutableStateOf(if (splitRegion.isNotEmpty()) splitRegion[0] else "") }
     var selectedSi by remember { mutableStateOf(if (splitRegion.size > 1) splitRegion[1] else "") }
