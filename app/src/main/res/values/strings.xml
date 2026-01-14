@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">잡아봐유</string>
+    <string name="title_activity_login">LoginActivity</string>
+    <string name="title_activity_avatar">AvatarActivity</string>
+    <string name="title_activity_my_page">MyPageActivity</string>
+    <string name="title_activity_customer_service">CustomerServiceActivity</string>
+    <string name="title_activity_map">MapActivity</string>
+    <string name="title_activity_create_meeting">CreateMeetingActivity</string>
+    <string name="title_activity_join_meeting">JoinMeetingActivity</string>
+    <string name="title_activity_scheduled_meetings">ScheduledMeetingsActivity</string>
+    <string name="title_activity_alarm_receiver">AlarmReceiver</string>
+    <string name="title_activity_notification_settings">NotificationSettingsActivity</string>
+    <string name="title_activity_meeting_tag_view">MeetingTagView</string>
+</resources>
