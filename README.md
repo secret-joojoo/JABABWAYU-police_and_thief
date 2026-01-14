@@ -16,6 +16,8 @@
 * **Map / GPS**: Kakao Maps API
 * **QR**: ZXing Library
 
+* **개발 기간**: 2026.01.08 ~ 2026.01.14
+
 ---
 
 ## ✨ 주요 기능 (Key Features)
@@ -52,13 +54,35 @@
 
 ## 📱 실행 화면 (Screen Shots)
 
-| 메인 화면(홈) | 지도(모임 탐색) | QR 출석체크 | 아바타 꾸미기 |
-|:---:|:---:|:---:|:---:|
-| <img src="이미지경로/main.jpg" width="200"/> | <img src="이미지경로/map.jpg" width="200"/> | <img src="이미지경로/qr.jpg" width="200"/> | <img src="이미지경로/avatar.jpg" width="200"/> |
+* **홈**
 
-| 모임 생성 | 인게임 화면 | 채팅방 | 마이페이지 |
+| 홈 화면 | 아바타 선택 | 복장 선택 | 규칙 보기 |
 |:---:|:---:|:---:|:---:|
-| <img src="이미지경로/create.jpg" width="200"/> | <img src="이미지경로/game.gif" width="200"/> | <img src="이미지경로/chat.jpg" width="200"/> | <img src="이미지경로/mypage.jpg" width="200"/> |
+| <img src="https://github.com/user-attachments/assets/b881ce52-9977-4bfd-896d-13e0de985d75" width="200"/> | <img src="https://github.com/user-attachments/assets/c42f28fc-931d-4f6e-a1b8-5f671fe7b784" width="200"/> | <img src="https://github.com/user-attachments/assets/7f070de3-408d-496d-9f19-d02ed3eb79c2" width="200"/> | <img src="https://github.com/user-attachments/assets/8065b37d-aa19-4611-bef9-5914f712db05" width="200"/> |
+
+* **지도**
+
+| 지도 화면 | 모임 만들기 | 모임 리스트 | 모임 참여하기 |
+|:---:|:---:|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/a7a5d613-7c48-40ed-937d-4114e17408da" width="200"/> | <img src="https://github.com/user-attachments/assets/eecc3474-ffd9-47f3-a612-24483887a512" width="200"/> | <img src="https://github.com/user-attachments/assets/54718b02-46b6-4ee0-9f55-8ddea913db14" width="200"/> | <img src="https://github.com/user-attachments/assets/d0483780-8bb6-44e2-917d-f8778d2cd55e" width="200"/> |
+
+* **출석**
+
+| QR 생성 | 역할 배정 | 승패 결정 | 승자 화면 |
+|:---:|:---:|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/a971f960-b6c6-46e3-bce5-8baaf9539928" width="200"/> | <img src="https://github.com/user-attachments/assets/9be35a8c-a3c7-4658-8b94-3a589cd76a0b" width="200"/> | <img src="https://github.com/user-attachments/assets/41883745-1c3e-4bcc-affa-e086de914578" width="200"/> | <img src="https://github.com/user-attachments/assets/3a885de3-309c-4ec3-9f18-98a26827b6dd" width="200"/> |
+
+* **내 모임**
+
+| 내 모임 화면 | 채팅 |
+|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/2daa3189-c56b-47aa-837a-3b6ce7cea50d" width="200"/> | <img src="https://github.com/user-attachments/assets/490aa25d-cbdf-429b-87a9-c63bd860be85" width="200"/> |
+
+* **마이페이지**
+
+| 마이페이지 화면 | 알림 설정 | 고객 문의 |
+|:---:|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/412c5900-4f8d-4120-871a-0402077b1cbe" width="200"/> | <img src="https://github.com/user-attachments/assets/05b974bb-42d5-4def-b08c-ed5b66be04ee" width="200"/> | <img src="https://github.com/user-attachments/assets/d3817d36-3278-4afe-9b3c-06386eb429d9" width="200"/> |
 
 ---
 
@@ -95,7 +119,3 @@
         2. Android 12.0 (Snow Cone) 이상의 안드로이드 기기를 디버깅 모드로 연결 후 실행합니다 (Run 'app').
 
 * **APK 다운로드**: [다운로드 링크](구글드라이브링크)
-
----
-
-* **개발 기간**: 2026.01.08 ~ 2026.01.14
