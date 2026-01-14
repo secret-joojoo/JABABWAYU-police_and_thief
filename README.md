@@ -118,4 +118,4 @@
         1. Android Studio에서 `Sync Project with Gradle Files`를 클릭합니다.
         2. Android 12.0 (Snow Cone) 이상의 안드로이드 기기를 디버깅 모드로 연결 후 실행합니다 (Run 'app').
 
-* **APK 다운로드**: [다운로드 링크](구글드라이브링크)
+* **APK 다운로드**: [잡아봐유 다운로드 하기 (Google Drive)](https://drive.google.com/file/d/1kURJDZKWvdwkvjdyDe-lrSZevrc6KqZc/view?usp=drive_link)
