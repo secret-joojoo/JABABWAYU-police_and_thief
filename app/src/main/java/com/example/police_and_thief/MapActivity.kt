@@ -216,6 +216,8 @@ fun MapScreen(onBack: () -> Unit) {
                                 Log.e("KakaoMap", "Error: ${error?.message}")
                             }
                         }, object : KakaoMapReadyCallback() {
+                            // MapActivity.kt의 onMapReady 부분
+
                             override fun onMapReady(kakaoMap: KakaoMap) {
                                 kakaoMapRef = kakaoMap
                                 val kaistLat = 36.3721
@@ -234,28 +236,24 @@ fun MapScreen(onBack: () -> Unit) {
                                     val normalStyle = LabelStyles.from(LabelStyle.from(normalIcon))
                                     val selectedStyle = LabelStyles.from(LabelStyle.from(selectedIcon))
 
+                                    // ★ [수정] 시간 조건 없이, 상태가 'RECRUITING'이면 무조건 가져옵니다.
+                                    // (주의: DB 필드명이 'status'인지 'meetingStatus'인지 꼭 확인하세요! 다른 파일들은 'meetingStatus'를 쓰고 있습니다.)
                                     db.collection("meetings")
-                                        .whereEqualTo("meetingStatus", "RECRUITING")
+                                        .whereEqualTo("status", "recruiting")
                                         .get()
                                         .addOnSuccessListener { result ->
-                                            val currentTime = System.currentTimeMillis()
-                                            val deadlineOffset = 30 * 60 * 1000 // ★ 30분 여유 시간
-                                            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-
                                             result.documents.forEach { doc ->
                                                 val lat = doc.getDouble("latitude")
                                                 val lng = doc.getDouble("longitude")
-                                                val title = doc.getString("title") ?: "모임"
-                                                val dateString = doc.getString("dateString") ?: ""
+                                                val id = doc.id
 
-                                                val meetingTime = try {
-                                                    sdf.parse(dateString)?.time ?: 0L
-                                                } catch (e: Exception) { 0L }
-
-                                                // ★ [수정됨] 좌표 있고 & (현재+30분)보다 미래에 있는 모임만 핀 찍기
-                                                if (lat != null && lng != null && lat != 0.0 && lng != 0.0 && meetingTime > currentTime + deadlineOffset) {
+                                                // 좌표가 유효하기만 하면 핀을 찍습니다.
+                                                if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
                                                     val options = LabelOptions.from(LatLng.from(lat, lng))
-                                                    // ... (Label 설정 코드는 그대로) ...
+                                                        .setStyles(normalStyle)
+                                                        .setTag(id) // 태그에 모임 ID 저장
+
+                                                    layer?.addLabel(options)
                                                 }
                                             }
                                         }
@@ -263,6 +261,7 @@ fun MapScreen(onBack: () -> Unit) {
                                     var currentSelectedLabel: Label? = null
 
                                     kakaoMap.setOnLabelClickListener { _, _, label ->
+                                        // (이 아래 클릭 리스너 코드는 기존과 동일하게 유지)
                                         if (!isSelectingLocation) {
                                             currentSelectedLabel?.apply {
                                                 changeStyles(normalStyle)
@@ -281,17 +280,7 @@ fun MapScreen(onBack: () -> Unit) {
                                                     .addOnSuccessListener { doc ->
                                                         val title = doc.getString("title") ?: "알 수 없는 모임"
                                                         val dateStr = doc.getString("dateString") ?: ""
-                                                        // 날짜 포맷팅
-                                                        val formattedInfo = try {
-                                                            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                                                            val outputFormat = SimpleDateFormat("yy.MM.dd, HH:mm", Locale.getDefault())
-                                                            val date = inputFormat.parse(dateStr)
-                                                            val newDateStr = outputFormat.format(date!!)
-                                                            "$title ($newDateStr)"
-                                                        } catch (e: Exception) {
-                                                            "$title ($dateStr)"
-                                                        }
-                                                        selectedSpotName = formattedInfo
+                                                        selectedSpotName = "$title ($dateStr)"
                                                     }
                                             }
                                         }

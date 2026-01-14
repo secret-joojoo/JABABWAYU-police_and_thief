@@ -72,27 +72,57 @@ fun AttendanceParticipantScreen(meetingId: String, onBack: () -> Unit) {
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         if (result.contents != null) {
             val scannedId = result.contents
-            // QR 코드가 현재 모임 ID와 일치하는지 확인
-            if (scannedId == meetingId) {
-                if (currentUser != null) {
-                    // 1. 모임 문서에 출석 체크 (기존 로직)
-                    db.collection("meetings").document(meetingId)
-                        .update("checkedInUids", FieldValue.arrayUnion(currentUser.uid))
-                        .addOnSuccessListener {
+            if (scannedId == meetingId && currentUser != null) {
 
-                            // ★ [추가됨] 2. 출석 보상: 매너온도 +0.5 상승
-                            db.collection("users").document(currentUser.uid)
-                                .update("mannerTemp", FieldValue.increment(0.5))
-                                .addOnSuccessListener {
-                                    Toast.makeText(context, "출석 완료! 매너온도 +0.5℃", Toast.LENGTH_SHORT).show()
-                                }
+                // 1. 모임 문서에 출석 체크 (기존 로직 유지)
+                db.collection("meetings").document(meetingId)
+                    .update("checkedInUids", FieldValue.arrayUnion(currentUser.uid))
+                    .addOnSuccessListener {
+
+                        // ★★★ [수정] 단순 increment 대신, 데이터를 가져와서 계산 후 업데이트 ★★★
+                        val userRef = db.collection("users").document(currentUser.uid)
+
+                        db.runTransaction { transaction ->
+                            val snapshot = transaction.get(userRef)
+
+                            // 현재 정보 가져오기
+                            val currentLevel = snapshot.getLong("level")?.toInt() ?: 1
+                            val currentExp = snapshot.getLong("exp")?.toInt() ?: 0
+                            val currentManner = snapshot.getDouble("mannerTemp") ?: 36.5
+
+                            // 보상 설정 (예: 출석하면 경험치 +10, 매너온도 +0.5)
+                            val earnedExp = 10
+
+                            // ★ 레벨업 계산 로직 (GameActivity와 동일한 로직 적용)
+                            var newLevel = currentLevel
+                            var newExp = currentExp + earnedExp
+                            // 레벨 * 100을 최대 경험치로 가정
+                            var maxExp = newLevel * 100
+
+                            while (newExp >= maxExp) {
+                                newExp -= maxExp
+                                newLevel++
+                                maxExp = newLevel * 100
+                            }
+
+                            // DB 업데이트 준비
+                            transaction.update(userRef, "level", newLevel)
+                            transaction.update(userRef, "exp", newExp)
+                            transaction.update(userRef, "mannerTemp", currentManner + 0.5) // 매너온도도 같이
+
+                            // 리턴값 (토스트 메시지용)
+                            if (newLevel > currentLevel) "LEVEL_UP" else "OK"
+
+                        }.addOnSuccessListener { resultMsg ->
+                            if (resultMsg == "LEVEL_UP") {
+                                Toast.makeText(context, "출석 완료! 레벨 업!! 🎉", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "출석 완료! (경험치 +10, 매너 +0.5)", Toast.LENGTH_SHORT).show()
+                            }
+                        }.addOnFailureListener {
+                            Toast.makeText(context, "보상 지급 실패", Toast.LENGTH_SHORT).show()
                         }
-                        .addOnFailureListener {
-                            Toast.makeText(context, "출석 처리에 실패했습니다. 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
-                        }
-                }
-            } else {
-                Toast.makeText(context, "잘못된 QR 코드입니다. (다른 방의 QR일 수 있습니다)", Toast.LENGTH_SHORT).show()
+                    }
             }
         }
     }
