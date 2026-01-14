@@ -58,7 +58,7 @@
 
 | 홈 화면 | 아바타 선택 | 복장 선택 | 규칙 보기 |
 |:---:|:---:|:---:|:---:|
-| <img src="https://github.com/user-attachments/assets/b881ce52-9977-4bfd-896d-13e0de985d75" width="200"/> | <img src="https://github.com/user-attachments/assets/c42f28fc-931d-4f6e-a1b8-5f671fe7b784" width="200"/> | <img src="https://github.com/user-attachments/assets/7f070de3-408d-496d-9f19-d02ed3eb79c2" width="200"/> | <img src="https://github.com/user-attachments/assets/8065b37d-aa19-4611-bef9-5914f712db05" width="200"/> |
+| <img src="https://github.com/user-attachments/assets/b881ce52-9977-4bfd-896d-13e0de985d75" width="200"/> | <img src="https://github.com/user-attachments/assets/7f070de3-408d-496d-9f19-d02ed3eb79c2" width="200"/> | <img src="https://github.com/user-attachments/assets/8065b37d-aa19-4611-bef9-5914f712db05" width="200"/> | <img src="https://github.com/user-attachments/assets/c42f28fc-931d-4f6e-a1b8-5f671fe7b784" width="200"/> |
 
 * **지도**
 
