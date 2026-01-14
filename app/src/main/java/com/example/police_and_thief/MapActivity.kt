@@ -235,7 +235,7 @@ fun MapScreen(onBack: () -> Unit) {
                                     val selectedStyle = LabelStyles.from(LabelStyle.from(selectedIcon))
 
                                     db.collection("meetings")
-                                        .whereEqualTo("status", "recruiting")
+                                        .whereEqualTo("meetingStatus", "RECRUITING")
                                         .get()
                                         .addOnSuccessListener { result ->
                                             val currentTime = System.currentTimeMillis()
